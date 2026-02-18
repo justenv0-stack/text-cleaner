@@ -123,11 +123,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Detects zero-width chars, bidi chars, homoglyphs, control chars, tag chars, instruction injection, base64 payloads, delimiter injection"
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed. All 8 detection techniques working correctly: zero-width chars (high severity), bidi chars (high severity), homoglyphs (medium severity), control chars (high severity), tag chars (critical severity), instruction injection (high severity), base64 payloads (high severity), delimiter injection (medium severity). Threat level calculation accurate. MongoDB storage working."
 
   - task: "Text cleaning endpoint (/api/clean)"
     implemented: true
@@ -135,35 +138,44 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Removes zero-width chars, bidi chars, replaces homoglyphs, removes control chars, applies NFKC normalization"
+      - working: true
+        agent: "testing"
+        comment: "Text cleaning working perfectly. Successfully removes zero-width chars, bidi chars, replaces Cyrillic homoglyphs with Latin equivalents, removes control chars. NFKC normalization applied. Character count tracking accurate."
 
   - task: "Scan history endpoint (/api/history)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Returns list of past scans stored in MongoDB"
+      - working: true
+        agent: "testing"
+        comment: "History endpoint working correctly. MongoDB integration successful. Returns properly formatted scan history with all required fields: id, timestamp, original_text_preview, threat_level, total_findings. Sorted by timestamp descending."
 
   - task: "Protection techniques info endpoint (/api/techniques)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "low"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Returns list of all detection techniques"
+      - working: true
+        agent: "testing"
+        comment: "Techniques endpoint working perfectly. Returns all 8 protection techniques with correct structure: name, description, severity, examples. All expected techniques present including Zero-Width Characters, Bidirectional Overrides, Homoglyphs, Control Characters, ASCII Smuggling (Tag Chars), Instruction Injection, Base64 Payloads, Delimiter Injection."
 
 frontend:
   - task: "Main UI with Scan tab"
