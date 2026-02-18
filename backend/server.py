@@ -289,31 +289,294 @@ def detect_instruction_patterns(text: str) -> List[Dict]:
     return findings
 
 
-def detect_base64_payloads(text: str) -> List[Dict]:
-    """Detect potential base64 encoded payloads"""
-    findings = []
-    # Look for base64-like patterns (at least 20 chars, ends properly)
-    base64_pattern = r'[A-Za-z0-9+/]{20,}={0,2}'
-    matches = list(re.finditer(base64_pattern, text))
+# Suspicious keywords for encoded content detection
+SUSPICIOUS_KEYWORDS = [
+    'ignore', 'system', 'prompt', 'instruction', 'override', 'jailbreak',
+    'bypass', 'disregard', 'forget', 'pretend', 'roleplay', 'act as',
+    'new prompt', 'admin', 'root', 'sudo', 'execute', 'eval', 'exec',
+    'password', 'secret', 'key', 'token', 'credential', 'api_key',
+    'delete', 'drop', 'truncate', 'rm -rf', 'format', 'shutdown',
+    'assistant:', 'human:', '[inst]', '[/inst]', '<<sys>>', '<</sys>>',
+    'dan mode', 'developer mode', 'unrestricted', 'no filter'
+]
+
+
+def rot13_decode(text: str) -> str:
+    """Decode ROT13 encoded text"""
+    result = []
+    for char in text:
+        if 'a' <= char <= 'z':
+            result.append(chr((ord(char) - ord('a') + 13) % 26 + ord('a')))
+        elif 'A' <= char <= 'Z':
+            result.append(chr((ord(char) - ord('A') + 13) % 26 + ord('A')))
+        else:
+            result.append(char)
+    return ''.join(result)
+
+
+def hex_decode(text: str) -> str:
+    """Decode hex encoded text"""
+    try:
+        # Remove common hex prefixes and separators
+        cleaned = re.sub(r'(0x|\\x|%)', '', text)
+        cleaned = re.sub(r'[\s,;:-]', '', cleaned)
+        if len(cleaned) % 2 == 0 and all(c in '0123456789abcdefABCDEF' for c in cleaned):
+            return bytes.fromhex(cleaned).decode('utf-8', errors='ignore')
+    except:
+        pass
+    return ''
+
+
+def is_valid_base64(s: str) -> bool:
+    """Check if string is valid base64 format"""
+    # Must be multiple of 4 (or can be padded to be)
+    # Character set [A-Za-z0-9+/=]
+    if not s:
+        return False
     
-    for match in matches:
-        potential_b64 = match.group()
+    # Remove whitespace
+    s = re.sub(r'\s', '', s)
+    
+    # Check length (valid base64 is always multiple of 4)
+    if len(s) % 4 != 0:
+        # Try padding
+        s = s + '=' * (4 - len(s) % 4)
+    
+    # Check character set
+    if not re.match(r'^[A-Za-z0-9+/]*={0,2}$', s):
+        return False
+    
+    # Minimum length to be meaningful
+    if len(s) < 8:
+        return False
+    
+    return True
+
+
+def decode_base64_recursive(text: str, max_depth: int = 5) -> List[Dict]:
+    """
+    Recursively decode base64 content up to max_depth layers.
+    Returns list of decoded layers with metadata.
+    """
+    layers = []
+    current = text
+    depth = 0
+    
+    while depth < max_depth:
+        # Clean whitespace
+        current_clean = re.sub(r'\s', '', current)
+        
+        # Check if it's valid base64
+        if not is_valid_base64(current_clean):
+            break
+        
         try:
-            # Try to decode
-            decoded = base64.b64decode(potential_b64).decode('utf-8', errors='ignore')
-            # Check if decoded content contains suspicious patterns
-            suspicious_keywords = ['ignore', 'system', 'prompt', 'instruction', 'override', 'jailbreak']
-            if any(kw in decoded.lower() for kw in suspicious_keywords):
-                findings.append({
+            # Pad if necessary
+            padding_needed = len(current_clean) % 4
+            if padding_needed:
+                current_clean += '=' * (4 - padding_needed)
+            
+            decoded = base64.b64decode(current_clean).decode('utf-8', errors='ignore')
+            
+            # Check if decoded content is printable/meaningful
+            printable_ratio = sum(c.isprintable() or c.isspace() for c in decoded) / max(len(decoded), 1)
+            if printable_ratio < 0.7:
+                break
+            
+            layers.append({
+                'depth': depth + 1,
+                'encoded': current_clean[:50] + '...' if len(current_clean) > 50 else current_clean,
+                'decoded': decoded[:200] if len(decoded) > 200 else decoded,
+                'full_decoded': decoded
+            })
+            
+            current = decoded
+            depth += 1
+            
+        except Exception:
+            break
+    
+    return layers
+
+
+def check_content_for_threats(content: str) -> List[str]:
+    """Check decoded content for suspicious patterns"""
+    threats_found = []
+    content_lower = content.lower()
+    
+    # Check for suspicious keywords
+    for keyword in SUSPICIOUS_KEYWORDS:
+        if keyword in content_lower:
+            threats_found.append(f"Contains '{keyword}'")
+    
+    # Check for instruction injection patterns
+    for pattern, description in INSTRUCTION_PATTERNS:
+        if re.search(pattern, content_lower, re.IGNORECASE):
+            threats_found.append(description)
+    
+    return threats_found
+
+
+def detect_base64_payloads(text: str) -> List[Dict]:
+    """
+    Detect base64 encoded payloads with recursive decoding.
+    Handles nested base64 (up to 5 layers deep).
+    """
+    findings = []
+    
+    # Pattern for base64: valid charset, reasonable length, multiple of 4 (or close)
+    # More permissive pattern to catch various base64 formats
+    base64_patterns = [
+        r'[A-Za-z0-9+/]{16,}={0,2}',  # Standard base64, min 16 chars
+        r'[A-Za-z0-9_-]{16,}={0,2}',   # URL-safe base64
+    ]
+    
+    found_positions = set()  # Avoid duplicate detections
+    
+    for pattern in base64_patterns:
+        matches = list(re.finditer(pattern, text))
+        
+        for match in matches:
+            if match.start() in found_positions:
+                continue
+                
+            potential_b64 = match.group()
+            
+            # Skip if it looks like a normal word (all letters, no numbers or special)
+            if potential_b64.isalpha() and len(potential_b64) < 30:
+                continue
+            
+            # Try recursive decoding
+            layers = decode_base64_recursive(potential_b64)
+            
+            if layers:
+                found_positions.add(match.start())
+                
+                # Get the deepest decoded content
+                deepest = layers[-1]
+                all_decoded_content = ' '.join([l['full_decoded'] for l in layers])
+                
+                # Check for threats in all decoded layers
+                threats = check_content_for_threats(all_decoded_content)
+                
+                # Determine severity based on depth and content
+                if len(layers) >= 3:
+                    severity = 'critical'
+                    description = f'Deeply nested base64 ({len(layers)} layers) - possible evasion attempt'
+                elif len(layers) >= 2:
+                    severity = 'high'
+                    description = f'Nested base64 ({len(layers)} layers)'
+                elif threats:
+                    severity = 'high'
+                    description = 'Base64 encoded suspicious content'
+                else:
+                    severity = 'medium'
+                    description = 'Base64 encoded content detected'
+                
+                finding = {
                     'type': 'encoded_payload',
-                    'description': 'Suspicious base64 encoded content',
-                    'encoded': potential_b64[:50] + '...' if len(potential_b64) > 50 else potential_b64,
+                    'encoding': 'base64',
+                    'description': description,
+                    'layers': len(layers),
+                    'encoded_preview': potential_b64[:60] + '...' if len(potential_b64) > 60 else potential_b64,
+                    'decoded_preview': deepest['decoded'][:150] if deepest['decoded'] else None,
+                    'position': match.start(),
+                    'severity': severity,
+                    'nested_layers': [{'depth': l['depth'], 'preview': l['decoded'][:50]} for l in layers]
+                }
+                
+                if threats:
+                    finding['threats_found'] = threats[:5]  # Limit to 5
+                
+                findings.append(finding)
+    
+    return findings
+
+
+def detect_hex_payloads(text: str) -> List[Dict]:
+    """Detect hex encoded payloads"""
+    findings = []
+    
+    # Various hex patterns
+    hex_patterns = [
+        (r'(?:0x[0-9a-fA-F]{2}[\s,]*){8,}', 'Hex with 0x prefix'),
+        (r'(?:\\x[0-9a-fA-F]{2}){8,}', 'Hex with \\x prefix'),
+        (r'(?:%[0-9a-fA-F]{2}){8,}', 'URL-encoded hex'),
+        (r'\b[0-9a-fA-F]{16,}\b', 'Raw hex string'),
+    ]
+    
+    for pattern, desc in hex_patterns:
+        matches = list(re.finditer(pattern, text))
+        
+        for match in matches:
+            hex_str = match.group()
+            decoded = hex_decode(hex_str)
+            
+            if decoded and len(decoded) >= 4:
+                threats = check_content_for_threats(decoded)
+                
+                severity = 'high' if threats else 'medium'
+                
+                finding = {
+                    'type': 'encoded_payload',
+                    'encoding': 'hex',
+                    'description': f'{desc} - decoded to readable text',
+                    'encoded_preview': hex_str[:60] + '...' if len(hex_str) > 60 else hex_str,
                     'decoded_preview': decoded[:100] if decoded else None,
                     'position': match.start(),
-                    'severity': 'high'
-                })
-        except:
-            pass
+                    'severity': severity
+                }
+                
+                if threats:
+                    finding['threats_found'] = threats[:5]
+                
+                findings.append(finding)
+    
+    return findings
+
+
+def detect_rot13_payloads(text: str) -> List[Dict]:
+    """Detect ROT13 encoded payloads by checking if decoding reveals suspicious content"""
+    findings = []
+    
+    # Look for word-like patterns that might be ROT13
+    # ROT13 of common injection words
+    rot13_suspicious = {
+        'vtaber': 'ignore',
+        'flfgrz': 'system', 
+        'cebzcg': 'prompt',
+        'vafgehpgvba': 'instruction',
+        'bireeevqr': 'override',
+        'wnvyoernx': 'jailbreak',
+        'olcnff': 'bypass',
+        'qvfertneq': 'disregard',
+        'sbetrg': 'forget',
+        'cergraq': 'pretend'
+    }
+    
+    text_lower = text.lower()
+    
+    for encoded, decoded in rot13_suspicious.items():
+        if encoded in text_lower:
+            # Find the position
+            pos = text_lower.find(encoded)
+            
+            # Decode a larger context around it
+            start = max(0, pos - 50)
+            end = min(len(text), pos + len(encoded) + 50)
+            context = text[start:end]
+            decoded_context = rot13_decode(context)
+            
+            findings.append({
+                'type': 'encoded_payload',
+                'encoding': 'rot13',
+                'description': f'ROT13 encoded suspicious word detected',
+                'encoded_word': encoded,
+                'decoded_word': decoded,
+                'decoded_context': decoded_context[:100],
+                'position': pos,
+                'severity': 'high'
+            })
     
     return findings
 
