@@ -180,6 +180,18 @@ backend:
         agent: "testing"
         comment: "Techniques endpoint working perfectly. Returns all 8 protection techniques with correct structure: name, description, severity, examples. All expected techniques present including Zero-Width Characters, Bidirectional Overrides, Homoglyphs, Control Characters, ASCII Smuggling (Tag Chars), Instruction Injection, Base64 Payloads, Delimiter Injection."
 
+  - task: "Clear history endpoint (DELETE /api/history)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Clear history endpoint working correctly. Successfully deletes all scan history entries from MongoDB and returns accurate deleted_count. Verified history is actually cleared."
+
 frontend:
   - task: "Main UI with Scan tab"
     implemented: true
