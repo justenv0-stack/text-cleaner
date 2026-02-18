@@ -310,7 +310,7 @@ def test_techniques_endpoint():
         "Bidirectional Overrides", 
         "Homoglyphs",
         "Control Characters",
-        "ASCII Smuggling",
+        "ASCII Smuggling (Tag Chars)",
         "Instruction Injection",
         "Base64 Payloads",
         "Delimiter Injection"
