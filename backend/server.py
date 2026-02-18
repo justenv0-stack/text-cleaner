@@ -761,6 +761,8 @@ async def scan_text(input: TextInput):
     findings.extend(detect_tag_chars(text))
     findings.extend(detect_instruction_patterns(text))
     findings.extend(detect_base64_payloads(text))
+    findings.extend(detect_hex_payloads(text))
+    findings.extend(detect_rot13_payloads(text))
     findings.extend(detect_delimiter_injection(text))
     
     threat_level = calculate_threat_level(findings)
