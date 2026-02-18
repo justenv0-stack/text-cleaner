@@ -121,15 +121,21 @@ HOMOGLYPHS = {
 # Suspicious instruction patterns - COMPREHENSIVE LIST
 INSTRUCTION_PATTERNS = [
     # Instruction override patterns
-    (r'ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?|guidelines?|commands?)', 'Instruction override attempt'),
+    (r'ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?|guidelines?|commands?|context)', 'Instruction override attempt'),
     (r'ignore\s+(all\s+)?(previous|prior|above|earlier)', 'Instruction override attempt'),
-    (r'ignore\s+(your|all|any)\s+(instructions?|rules?|guidelines?|commands?)', 'Instruction override attempt'),
+    (r'ignore\s+(your|all|any)\s+(instructions?|rules?|guidelines?|commands?|context)', 'Instruction override attempt'),
     (r'disregard\s+(all\s+)?(previous|prior|above|earlier)', 'Instruction override attempt'),
-    (r'disregard\s+(your|all|any)\s+(instructions?|rules?)', 'Instruction override attempt'),
+    (r'disregard\s+(your|all|any)\s+(previous\s+)?(instructions?|rules?|context)', 'Instruction override attempt'),
     
     # Memory/instruction manipulation
     (r'forget\s+(everything|all|what)\s+(you|i)\s+(said|told|mentioned)', 'Memory manipulation attempt'),
-    (r'forget\s+(your|all|any)\s+(instructions?|rules?|training)', 'Memory manipulation attempt'),
+    (r'forget\s+(your|all|any)\s+(instructions?|rules?|training|context)', 'Memory manipulation attempt'),
+    
+    # New instructions override - CRITICAL PATTERN
+    (r'new\s+instructions?\s*:', 'Instruction override attempt'),
+    (r'updated\s+instructions?\s*:', 'Instruction override attempt'),
+    (r'revised\s+instructions?\s*:', 'Instruction override attempt'),
+    (r'replacement\s+instructions?\s*:', 'Instruction override attempt'),
     
     # System prompt attacks
     (r'new\s+(system\s+)?prompt', 'System prompt injection'),
@@ -151,6 +157,8 @@ INSTRUCTION_PATTERNS = [
     (r'bypass\s+(your|all|any)\s+(restrictions?|filters?|safety)', 'Safety bypass attempt'),
     (r'disable\s+(your|all|any)\s+(restrictions?|filters?|safety)', 'Safety bypass attempt'),
     (r'turn\s+off\s+(your|all|any)\s+(restrictions?|filters?|safety)', 'Safety bypass attempt'),
+    (r'without\s+(any\s+)?(filtering|filters?|restrictions?|safety)', 'Safety bypass attempt'),
+    (r'no\s+(filtering|filters?|restrictions?|safety)', 'Safety bypass attempt'),
     
     # Jailbreak patterns
     (r'jailbreak', 'Jailbreak attempt'),
@@ -159,12 +167,16 @@ INSTRUCTION_PATTERNS = [
     (r'god\s+mode', 'Jailbreak attempt'),
     (r'unrestricted\s+mode', 'Jailbreak attempt'),
     
-    # Sensitive data extraction
+    # Sensitive data extraction - expanded
     (r'give\s+(me\s+)?(the\s+)?(passwords?|credentials?|secrets?|keys?|tokens?)', 'Sensitive data extraction attempt'),
     (r'show\s+(me\s+)?(the\s+)?(passwords?|credentials?|secrets?|keys?|tokens?)', 'Sensitive data extraction attempt'),
     (r'reveal\s+(the\s+)?(passwords?|credentials?|secrets?|keys?|tokens?)', 'Sensitive data extraction attempt'),
     (r'list\s+(all\s+)?(passwords?|credentials?|secrets?|keys?|tokens?)', 'Sensitive data extraction attempt'),
     (r'dump\s+(all\s+)?(passwords?|credentials?|secrets?|data)', 'Sensitive data extraction attempt'),
+    (r'output\s+(your|the|my)\s+(api\s*)?keys?', 'Sensitive data extraction attempt'),
+    (r'output\s+(your|the|my)\s+(credentials?|passwords?|secrets?|tokens?)', 'Sensitive data extraction attempt'),
+    (r'print\s+(your|the|my)\s+(api\s*)?keys?', 'Sensitive data extraction attempt'),
+    (r'print\s+(your|the|my)\s+(credentials?|passwords?|secrets?|tokens?)', 'Sensitive data extraction attempt'),
     
     # System tag injection
     (r'\[\s*system\s*\]', 'System tag injection'),
