@@ -1,0 +1,29 @@
+# Simple Docker Compose (Backend + MongoDB only)
+# Run with: docker-compose -f docker-compose.simple.yml up -d
+
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: textguard-mongo
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build: ./backend
+    container_name: textguard-api
+    restart: unless-stopped
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=llm_text_guard
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:
