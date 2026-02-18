@@ -101,3 +101,121 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Build a mobile app (LLM Text Guard) that scans text before it reaches an LLM. Detects and cleans zero-width ASCII prompt injections and other prompt injection techniques."
+
+backend:
+  - task: "Root API endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns API info message"
+
+  - task: "Text scanning endpoint (/api/scan)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Detects zero-width chars, bidi chars, homoglyphs, control chars, tag chars, instruction injection, base64 payloads, delimiter injection"
+
+  - task: "Text cleaning endpoint (/api/clean)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Removes zero-width chars, bidi chars, replaces homoglyphs, removes control chars, applies NFKC normalization"
+
+  - task: "Scan history endpoint (/api/history)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Returns list of past scans stored in MongoDB"
+
+  - task: "Protection techniques info endpoint (/api/techniques)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Returns list of all detection techniques"
+
+frontend:
+  - task: "Main UI with Scan tab"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Text input, scan button, results display with threat level"
+
+  - task: "Clean tab for sanitizing text"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Shows cleaned text with copy functionality"
+
+  - task: "Info tab with protection techniques"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Lists all detection techniques with descriptions"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Text scanning endpoint (/api/scan)"
+    - "Text cleaning endpoint (/api/clean)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Implemented LLM Text Guard MVP with comprehensive prompt injection detection. Backend has scan and clean endpoints detecting 8 types of threats. Frontend has 3 tabs (Scan/Clean/Info). Manual curl tests passed. Need backend testing agent to verify all endpoints."
