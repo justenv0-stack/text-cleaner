@@ -509,19 +509,24 @@ def detect_base64_payloads(text: str) -> List[Dict]:
                 # Check for threats in all decoded layers
                 threats = check_content_for_threats(all_decoded_content)
                 
-                # Determine severity based on depth and content
+                # IMPORTANT: Only flag base64 if it contains threats OR is deeply nested
+                # Single-layer benign base64 is normal and should not be flagged
                 if len(layers) >= 3:
                     severity = 'critical'
                     description = f'Deeply nested base64 ({len(layers)} layers) - possible evasion attempt'
-                elif len(layers) >= 2:
+                elif len(layers) >= 2 and threats:
                     severity = 'high'
+                    description = f'Nested base64 ({len(layers)} layers) with suspicious content'
+                elif len(layers) >= 2:
+                    # Nested but no threats - still suspicious due to nesting
+                    severity = 'medium'
                     description = f'Nested base64 ({len(layers)} layers)'
                 elif threats:
                     severity = 'high'
                     description = 'Base64 encoded suspicious content'
                 else:
-                    severity = 'medium'
-                    description = 'Base64 encoded content detected'
+                    # Single layer, no threats = benign, skip it entirely
+                    continue
                 
                 finding = {
                     'type': 'encoded_payload',
