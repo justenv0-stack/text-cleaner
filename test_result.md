@@ -116,6 +116,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Returns API info message"
+      - working: true
+        agent: "testing"
+        comment: "Root endpoint working correctly. Returns proper JSON response with LLM Text Guard API message."
 
   - task: "Text scanning endpoint (/api/scan)"
     implemented: true
